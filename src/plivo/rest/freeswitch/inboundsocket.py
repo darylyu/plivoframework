@@ -4,7 +4,6 @@
 from gevent import monkey
 monkey.patch_all()
 
-import os.path
 import uuid
 try:
     import xml.etree.cElementTree as etree
@@ -16,20 +15,24 @@ from gevent import pool
 import gevent.event
 
 from plivo.core.freeswitch.inboundsocket import InboundEventSocket
-from plivo.rest.freeswitch.helpers import HTTPRequest, get_substring, \
-                                        is_valid_url, \
-                                        file_exists, normalize_url_space, \
-                                        get_resource, \
-                                        is_valid_sound_proto
+from plivo.rest.freeswitch.helpers import (HTTPRequest,
+                                           get_substring,
+                                           is_valid_url,
+                                           file_exists,
+                                           normalize_url_space,
+                                           get_resource,
+                                           is_valid_sound_proto)
 
 
 EVENT_FILTER = "BACKGROUND_JOB CHANNEL_PROGRESS CHANNEL_PROGRESS_MEDIA CHANNEL_HANGUP_COMPLETE CHANNEL_STATE SESSION_HEARTBEAT CALL_UPDATE RECORD_STOP CUSTOM conference::maintenance"
 
 
 class RESTInboundSocket(InboundEventSocket):
+
     """
     Interface between REST API and the InboundSocket
     """
+
     def __init__(self, server):
         self.server = server
         self.log = self.server.log
@@ -81,12 +84,11 @@ class RESTInboundSocket(InboundEventSocket):
         params = {'CallUUID': calluuid,
                   'RecordFile': rpath,
                   'RecordDuration': rms}
-        self.log.info("Record Stop event %s"  % str(params))
+        self.log.info("Record Stop event %s" % str(params))
         self.send_to_url(self.get_server().record_url, params)
 
     def on_custom(self, event):
-        if event['Event-Subclass'] == 'conference::maintenance' \
-            and event['Action'] == 'stop-recording':
+        if event['Event-Subclass'] == 'conference::maintenance' and event['Action'] == 'stop-recording':
             if not self.get_server().record_url:
                 return
             # special case to manage record files
@@ -100,7 +102,7 @@ class RESTInboundSocket(InboundEventSocket):
             params = {'ConferenceName': room,
                       'RecordFile': rpath,
                       'RecordDuration': rms}
-            self.log.info("Conference Record Stop event %s"  % str(params))
+            self.log.info("Conference Record Stop event %s" % str(params))
             self.send_to_url(self.get_server().record_url, params)
 
     def on_background_job(self, event):
@@ -126,11 +128,11 @@ class RESTInboundSocket(InboundEventSocket):
                 status = status.strip()
                 reason = reason.strip()
                 if status[:3] != '+OK':
-                    self.log.info("GroupCall Attempt Done for RequestUUID %s (%s)" \
-                                                    % (request_uuid, reason))
+                    self.log.info("GroupCall Attempt Done for RequestUUID %s (%s)"
+                                  % (request_uuid, reason))
                     return
-                self.log.warn("GroupCall Attempt Failed for RequestUUID %s (%s)" \
-                                                    % (request_uuid, reason))
+                self.log.warn("GroupCall Attempt Failed for RequestUUID %s (%s)"
+                              % (request_uuid, reason))
                 return
 
             # case Call and BulkCall
@@ -147,18 +149,20 @@ class RESTInboundSocket(InboundEventSocket):
                 # In case ring/early state done, just warn
                 # releasing call request will be done in hangup event
                 if call_req.state_flag in ('Ringing', 'EarlyMedia'):
-                    self.log.warn("Call Attempt Done (%s) for RequestUUID %s but Failed (%s)" \
-                                                    % (call_req.state_flag, request_uuid, reason))
+                    self.log.warn("Call Attempt Done (%s) for RequestUUID %s but Failed (%s)"
+                                  % (call_req.state_flag, request_uuid, reason))
                     # notify end
-                    self.log.debug("Notify Call success for RequestUUID %s" % request_uuid)
+                    self.log.debug("Notify Call success for RequestUUID %s" %
+                                   request_uuid)
                     call_req.notify_call_end()
                     return
                 # If no more gateways, release call request
                 elif not call_req.gateways:
-                    self.log.warn("Call Failed for RequestUUID %s but No More Gateways (%s)" \
-                                                    % (request_uuid, reason))
+                    self.log.warn("Call Failed for RequestUUID %s but No More Gateways (%s)"
+                                  % (request_uuid, reason))
                     # notify end
-                    self.log.debug("Notify Call success for RequestUUID %s" % request_uuid)
+                    self.log.debug("Notify Call success for RequestUUID %s" %
+                                   request_uuid)
                     call_req.notify_call_end()
                     # set an empty call_uuid
                     call_uuid = ''
@@ -169,10 +173,11 @@ class RESTInboundSocket(InboundEventSocket):
                 # If there are gateways and call request state_flag is not set
                 # try again a call
                 elif call_req.gateways:
-                    self.log.warn("Call Failed without Ringing/EarlyMedia for RequestUUID %s - Retrying Now (%s)" \
-                                                    % (request_uuid, reason))
+                    self.log.warn("Call Failed without Ringing/EarlyMedia for RequestUUID %s - Retrying Now (%s)"
+                                  % (request_uuid, reason))
                     # notify try a new call
-                    self.log.debug("Notify Call retry for RequestUUID %s" % request_uuid)
+                    self.log.debug("Notify Call retry for RequestUUID %s" %
+                                   request_uuid)
                     call_req.notify_call_try()
         elif job_cmd == 'conference' and job_uuid:
             result = event.get_body().strip() or ''
@@ -180,10 +185,14 @@ class RESTInboundSocket(InboundEventSocket):
             if async_res is None:
                 return
             elif async_res is True:
-                self.log.info("Conference Api (async) Response for JobUUID %s -- %s" % (job_uuid, result))
+                self.log.info(
+                    "Conference Api (async) Response for JobUUID %s -- %s" %
+                    (job_uuid, result))
                 return
             async_res.set(result)
-            self.log.info("Conference Api (sync) Response for JobUUID %s -- %s" % (job_uuid, result))
+            self.log.info(
+                "Conference Api (sync) Response for JobUUID %s -- %s" %
+                (job_uuid, result))
 
     def on_channel_progress(self, event):
         request_uuid = event['variable_plivo_request_uuid']
@@ -202,7 +211,9 @@ class RESTInboundSocket(InboundEventSocket):
                 except (KeyError, AttributeError):
                     return
                 # notify call and
-                self.log.debug("Notify Call success (Ringing) for RequestUUID %s" % request_uuid)
+                self.log.debug(
+                    "Notify Call success (Ringing) for RequestUUID %s" %
+                    request_uuid)
                 call_req.notify_call_end()
                 # only send if not already ringing/early state
                 if not call_req.state_flag:
@@ -223,15 +234,15 @@ class RESTInboundSocket(InboundEventSocket):
                 called_num = called_num.lstrip('+')
                 caller_num = event['Caller-Caller-ID-Number'] or ''
                 call_uuid = event['Unique-ID'] or ''
-                self.log.info("Call from %s to %s Ringing for RequestUUID %s" \
-                                % (caller_num, called_num, request_uuid))
+                self.log.info("Call from %s to %s Ringing for RequestUUID %s"
+                              % (caller_num, called_num, request_uuid))
                 params = {'To': called_num,
                           'RequestUUID': request_uuid,
                           'Direction': direction,
                           'CallStatus': 'ringing',
                           'From': caller_num,
                           'CallUUID': call_uuid
-                         }
+                          }
                 # add extra params
                 extra_params = self.get_extra_fs_vars(event)
                 if extra_params:
@@ -244,7 +255,8 @@ class RESTInboundSocket(InboundEventSocket):
         request_uuid = event['variable_plivo_request_uuid']
         direction = event['Call-Direction']
         # Detect early media state
-        # See http://wiki.freeswitch.org/wiki/Early_media#Early_Media_And_Dialing_Out
+        # See
+        # http://wiki.freeswitch.org/wiki/Early_media#Early_Media_And_Dialing_Out
         if request_uuid and direction == 'outbound':
             accountsid = event['variable_plivo_accountsid']
             # case BulkCall and Call
@@ -253,7 +265,9 @@ class RESTInboundSocket(InboundEventSocket):
             except (KeyError, AttributeError):
                 return
             # notify call end
-            self.log.debug("Notify Call success (EarlyMedia) for RequestUUID %s" % request_uuid)
+            self.log.debug(
+                "Notify Call success (EarlyMedia) for RequestUUID %s" %
+                request_uuid)
             call_req.notify_call_end()
             # only send if not already ringing/early state
             if not call_req.state_flag:
@@ -274,15 +288,15 @@ class RESTInboundSocket(InboundEventSocket):
                 called_num = called_num.lstrip('+')
                 caller_num = event['Caller-Caller-ID-Number'] or ''
                 call_uuid = event['Unique-ID'] or ''
-                self.log.info("Call from %s to %s in EarlyMedia for RequestUUID %s" \
-                                % (caller_num, called_num, request_uuid))
+                self.log.info("Call from %s to %s in EarlyMedia for RequestUUID %s"
+                              % (caller_num, called_num, request_uuid))
                 params = {'To': called_num,
                           'RequestUUID': request_uuid,
                           'Direction': direction,
                           'CallStatus': 'ringing',
                           'From': caller_num,
                           'CallUUID': call_uuid
-                         }
+                          }
                 # add extra params
                 extra_params = self.get_extra_fs_vars(event)
                 if extra_params:
@@ -317,7 +331,7 @@ class RESTInboundSocket(InboundEventSocket):
                       'DialALegUUID': aleg_uuid,
                       'DialBLegStatus': 'answer',
                       'CallUUID': aleg_uuid
-                     }
+                      }
             # add extra params
             extra_params = self.get_extra_fs_vars(event)
             if extra_params:
@@ -345,12 +359,13 @@ class RESTInboundSocket(InboundEventSocket):
         ck_url = app_vars.split('plivo_dial_callback_url=')[1].split(',')[0]
         if not 'plivo_dial_callback_method' in app_vars:
             return
-        ck_method = app_vars.split('plivo_dial_callback_method=')[1].split(',')[0]
+        ck_method = app_vars.split(
+            'plivo_dial_callback_method=')[1].split(',')[0]
         params = {'DialBLegUUID': bleg_uuid,
                   'DialALegUUID': aleg_uuid,
                   'DialBLegStatus': 'answer',
                   'CallUUID': aleg_uuid
-                 }
+                  }
         spawn_raw(self.send_to_url, ck_url, params, ck_method)
         return
 
@@ -376,13 +391,13 @@ class RESTInboundSocket(InboundEventSocket):
             if hangup_cause == 'LOSE_RACE':
                 return
             bleg_uuid = event['Unique-ID']
-            
+
             params = {'DialBLegUUID': bleg_uuid,
                       'DialALegUUID': aleg_uuid,
                       'DialBLegStatus': 'hangup',
                       'DialBLegHangupCause': hangup_cause,
                       'CallUUID': aleg_uuid
-                     }
+                      }
             # add extra params
             extra_params = self.get_extra_fs_vars(event)
             if extra_params:
@@ -424,21 +439,24 @@ class RESTInboundSocket(InboundEventSocket):
                     return
                 # If there are gateways to try again, spawn originate
                 if call_req.gateways:
-                    self.log.debug("Call Failed for RequestUUID %s - Retrying (%s)" \
-                                    % (request_uuid, reason))
+                    self.log.debug("Call Failed for RequestUUID %s - Retrying (%s)"
+                                   % (request_uuid, reason))
                     # notify try call
-                    self.log.debug("Notify Call retry for RequestUUID %s" % request_uuid)
+                    self.log.debug("Notify Call retry for RequestUUID %s" %
+                                   request_uuid)
                     call_req.notify_call_try()
                     return
                 # else clean call request
                 hangup_url = call_req.hangup_url
                 # notify call end
-                self.log.debug("Notify Call success for RequestUUID %s" % request_uuid)
+                self.log.debug("Notify Call success for RequestUUID %s" %
+                               request_uuid)
                 call_req.notify_call_end()
 
             # send hangup
             try:
-                self.set_hangup_complete(request_uuid, call_uuid, reason, event, hangup_url)
+                self.set_hangup_complete(
+                    request_uuid, call_uuid, reason, event, hangup_url)
             except Exception, e:
                 self.log.error(str(e))
 
@@ -458,27 +476,31 @@ class RESTInboundSocket(InboundEventSocket):
             if res.is_success():
                 self.log.info("TransferCall Done for %s" % call_uuid)
             else:
-                self.log.info("TransferCall Failed for %s: %s" \
-                               % (call_uuid, res.get_response()))
+                self.log.info("TransferCall Failed for %s: %s"
+                              % (call_uuid, res.get_response()))
         # On state CS_HANGUP, remove transfer job linked to call_uuid
         elif event['Channel-State'] == 'CS_HANGUP':
             call_uuid = event['Unique-ID']
             # try to clean transfer call
             xfer = self.xfer_jobs.pop(call_uuid, None)
             if xfer:
-                self.log.warn("TransferCall Aborted (hangup) for %s" % call_uuid)
+                self.log.warn("TransferCall Aborted (hangup) for %s" %
+                              call_uuid)
 
     def on_session_heartbeat(self, event):
         """Capture every heartbeat event in a session and post info
         """
         params = {}
-        answer_seconds_since_epoch = float(event['Caller-Channel-Answered-Time'])/1000000
+        answer_seconds_since_epoch = float(
+            event['Caller-Channel-Answered-Time']) / 1000000
         # using UTC here .. make sure FS is using UTC also
         params['AnsweredTime'] = str(answer_seconds_since_epoch)
-        heartbeat_seconds_since_epoch = float(event['Event-Date-Timestamp'])/1000000
+        heartbeat_seconds_since_epoch = float(
+            event['Event-Date-Timestamp']) / 1000000
         # using UTC here .. make sure FS is using UTC also
         params['HeartbeatTime'] = str(heartbeat_seconds_since_epoch)
-        params['ElapsedTime'] = str(heartbeat_seconds_since_epoch - answer_seconds_since_epoch)
+        params['ElapsedTime'] = str(
+            heartbeat_seconds_since_epoch - answer_seconds_since_epoch)
         called_num = event['variable_plivo_destination_number']
         if not called_num or called_num == '_undef_':
             called_num = event['Caller-Destination-Number'] or ''
@@ -488,7 +510,7 @@ class RESTInboundSocket(InboundEventSocket):
         params['CallUUID'] = event['Unique-ID']
         params['Direction'] = event['Call-Direction']
         forwarded_from = get_substring(':', '@',
-                            event['variable_sip_h_Diversion'])
+                                       event['variable_sip_h_Diversion'])
         if forwarded_from:
             params['ForwardedFrom'] = forwarded_from.lstrip('+')
         if event['Channel-State'] == 'CS_EXECUTE':
@@ -504,8 +526,10 @@ class RESTInboundSocket(InboundEventSocket):
         self.log.debug("Got Session Heartbeat from Freeswitch: %s" % params)
 
         if self.get_server().call_heartbeat_url:
-            self.log.debug("Sending heartbeat to callback: %s" % self.get_server().call_heartbeat_url)
-            spawn_raw(self.send_to_url, self.get_server().call_heartbeat_url, params)
+            self.log.debug("Sending heartbeat to callback: %s" %
+                           self.get_server().call_heartbeat_url)
+            spawn_raw(self.send_to_url, self.get_server()
+                      .call_heartbeat_url, params)
 
     def set_hangup_complete(self, request_uuid, call_uuid, reason, event, hangup_url):
         params = {}
@@ -514,28 +538,29 @@ class RESTInboundSocket(InboundEventSocket):
 
         # case incoming call
         if not request_uuid:
-            self.log.info("Hangup for Incoming CallUUID %s Completed, HangupCause %s" \
-                                                        % (call_uuid, reason))
+            self.log.info("Hangup for Incoming CallUUID %s Completed, HangupCause %s"
+                          % (call_uuid, reason))
             # get hangup url
             hangup_url = event['variable_plivo_hangup_url']
             if hangup_url:
-                self.log.debug("Using HangupUrl for CallUUID %s" \
-                                                        % call_uuid)
+                self.log.debug("Using HangupUrl for CallUUID %s"
+                               % call_uuid)
             else:
                 if self.get_server().default_hangup_url:
                     hangup_url = self.get_server().default_hangup_url
-                    self.log.debug("Using HangupUrl from DefaultHangupUrl for CallUUID %s" \
-                                                        % call_uuid)
+                    self.log.debug("Using HangupUrl from DefaultHangupUrl for CallUUID %s"
+                                   % call_uuid)
                 elif event['variable_plivo_answer_url']:
                     hangup_url = event['variable_plivo_answer_url']
-                    self.log.debug("Using HangupUrl from AnswerUrl for CallUUID %s" \
-                                                        % call_uuid)
+                    self.log.debug("Using HangupUrl from AnswerUrl for CallUUID %s"
+                                   % call_uuid)
                 elif self.get_server().default_answer_url:
                     hangup_url = self.get_server().default_answer_url
-                    self.log.debug("Using HangupUrl from DefaultAnswerUrl for CallUUID %s" \
-                                                        % call_uuid)
+                    self.log.debug("Using HangupUrl from DefaultAnswerUrl for CallUUID %s"
+                                   % call_uuid)
             if not hangup_url:
-                self.log.debug("No HangupUrl for Incoming CallUUID %s" % call_uuid)
+                self.log.debug("No HangupUrl for Incoming CallUUID %s" %
+                               call_uuid)
                 return
             called_num = event['variable_plivo_destination_number']
             if not called_num or called_num == '_undef_':
@@ -546,7 +571,7 @@ class RESTInboundSocket(InboundEventSocket):
         # case outgoing call, add params
         else:
             self.log.info("Hangup for Outgoing CallUUID %s Completed, HangupCause %s, RequestUUID %s"
-                                        % (call_uuid, reason, request_uuid))
+                          % (call_uuid, reason, request_uuid))
             try:
                 call_req = self.call_requests[request_uuid]
                 called_num = call_req.to.lstrip('+')
@@ -564,10 +589,13 @@ class RESTInboundSocket(InboundEventSocket):
             self.log.debug("Call Cleaned up for RequestUUID %s" % request_uuid)
 
             if not hangup_url:
-                self.log.debug("No HangupUrl for Outgoing Call %s, RequestUUID %s" % (call_uuid, request_uuid))
+                self.log.debug(
+                    "No HangupUrl for Outgoing Call %s, RequestUUID %s" %
+                    (call_uuid, request_uuid))
                 return
 
-            forwarded_from = get_substring(':', '@', event['variable_sip_h_Diversion'])
+            forwarded_from = get_substring(
+                ':', '@', event['variable_sip_h_Diversion'])
             aleg_uuid = event['Caller-Unique-ID']
             aleg_request_uuid = event['variable_plivo_request_uuid']
             sched_hangup_id = event['variable_plivo_sched_hangup_id']
@@ -602,19 +630,21 @@ class RESTInboundSocket(InboundEventSocket):
             self.log.warn("Cannot send %s, no url !" % method)
             return None
         try:
-            http_obj = HTTPRequest(self.get_server().key, self.get_server().secret, self.get_server().proxy_url)
+            http_obj = HTTPRequest(
+                self.get_server().key, self.get_server().secret, self.get_server().proxy_url)
             data = http_obj.fetch_response(url, params, method, log=self.log)
             return data
         except Exception, e:
             self.log.error("Sending to %s %s with %s -- Error: %s"
-                                        % (method, url, params, e))
+                           % (method, url, params, e))
         return None
 
     def spawn_originate(self, request_uuid):
         try:
             call_req = self.call_requests[request_uuid]
         except KeyError:
-            self.log.warn("Call Request not found for RequestUUID %s" % request_uuid)
+            self.log.warn("Call Request not found for RequestUUID %s" %
+                          request_uuid)
             return False
         spawn_raw(self._spawn_originate, call_req)
         self.log.warn("Call Request Spawned for RequestUUID %s" % request_uuid)
@@ -628,7 +658,9 @@ class RESTInboundSocket(InboundEventSocket):
                 try:
                     gw = call_req.gateways.pop(0)
                 except IndexError:
-                    self.log.warn("No more Gateways to call for RequestUUID %s" % request_uuid)
+                    self.log.warn(
+                        "No more Gateways to call for RequestUUID %s" %
+                        request_uuid)
                     try:
                         self.call_requests[request_uuid] = None
                         del self.call_requests[request_uuid]
@@ -650,36 +682,41 @@ class RESTInboundSocket(InboundEventSocket):
                 # Build originate dial string
                 options = ','.join(_options)
                 outbound_str = "&socket('%s async full')" \
-                                % self.get_server().fs_out_address
+                    % self.get_server().fs_out_address
 
                 dial_str = "originate {%s,%s}%s%s %s" \
                     % (call_req.extra_dial_string, options, gw.gw, gw.to, outbound_str)
-                self.log.debug("Call try for RequestUUID %s with Gateway %s" \
-                            % (request_uuid, gw.gw))
+                self.log.debug("Call try for RequestUUID %s with Gateway %s"
+                               % (request_uuid, gw.gw))
                 # Execute originate on background
                 self.log.debug("spawn_originate: %s" % str(dial_str))
                 bg_api_response = self.bgapi(dial_str)
                 job_uuid = bg_api_response.get_job_uuid()
                 self.bk_jobs[job_uuid] = request_uuid
                 if not job_uuid:
-                    self.log.error("Call Failed for RequestUUID %s -- JobUUID not received" \
-                                                                    % request_uuid)
+                    self.log.error("Call Failed for RequestUUID %s -- JobUUID not received"
+                                   % request_uuid)
                     continue
                 # wait for current call attempt to finish
-                self.log.debug("Waiting Call attempt for RequestUUID %s ..." % request_uuid)
+                self.log.debug("Waiting Call attempt for RequestUUID %s ..." %
+                               request_uuid)
                 success = call_req.wait_call_attempt()
                 if success is True:
-                    self.log.info("Call Attempt OK for RequestUUID %s" % request_uuid)
+                    self.log.info("Call Attempt OK for RequestUUID %s" %
+                                  request_uuid)
                     return
-                self.log.info("Call Attempt Failed for RequestUUID %s, retrying next gateway ..." % request_uuid)
+                self.log.info(
+                    "Call Attempt Failed for RequestUUID %s, retrying next gateway ..." % request_uuid)
                 continue
         except Exception, e:
             self.log.error(str(e))
 
     def group_originate(self, request_uuid, group_list, group_options=[], reject_causes=''):
-        self.log.debug("GroupCall => %s %s" % (str(request_uuid), str(group_options)))
+        self.log.debug("GroupCall => %s %s" %
+                       (str(request_uuid), str(group_options)))
 
-        outbound_str = "&socket('%s async full')" % self.get_server().fs_out_address
+        outbound_str = "&socket('%s async full')" % self.get_server(
+        ).fs_out_address
         # Set plivo app flag and request uuid
         group_options.append('plivo_request_uuid=%s' % request_uuid)
         group_options.append("plivo_app=true")
@@ -731,7 +768,7 @@ class RESTInboundSocket(InboundEventSocket):
 
         # Execute originate on background
         dial_str = "originate %s %s" \
-                % (dial_str, outbound_str)
+            % (dial_str, outbound_str)
         self.log.debug("GroupCall : %s" % str(dial_str))
 
         bg_api_response = self.bgapi(dial_str)
@@ -739,17 +776,18 @@ class RESTInboundSocket(InboundEventSocket):
         self.bk_jobs[job_uuid] = request_uuid
         self.log.debug(str(bg_api_response))
         if not job_uuid:
-            self.log.error("GroupCall Failed for RequestUUID %s -- JobUUID not received" \
-                                                            % request_uuid)
+            self.log.error("GroupCall Failed for RequestUUID %s -- JobUUID not received"
+                           % request_uuid)
             return False
         return True
 
     def bulk_originate(self, request_uuid_list):
         if request_uuid_list:
-            self.log.info("BulkCall for RequestUUIDs %s" % str(request_uuid_list))
+            self.log.info("BulkCall for RequestUUIDs %s" %
+                          str(request_uuid_list))
             job_pool = pool.Pool(len(request_uuid_list))
-            [ job_pool.spawn(self.spawn_originate, request_uuid)
-                                        for request_uuid in request_uuid_list ]
+            [job_pool.spawn(self.spawn_originate, request_uuid)
+             for request_uuid in request_uuid_list]
             return True
         self.log.error("BulkCall Failed -- No RequestUUID !")
         return False
@@ -762,13 +800,14 @@ class RESTInboundSocket(InboundEventSocket):
         called_num = self.get_var("plivo_destination_number", uuid=call_uuid)
         if not called_num:
             called_num = self.get_var("destination_number", uuid=call_uuid)
-            self.set_var("plivo_destination_number", called_num, uuid=call_uuid)
+            self.set_var("plivo_destination_number",
+                         called_num, uuid=call_uuid)
         # Set transfer url
         self.set_var("plivo_transfer_url", new_xml_url, uuid=call_uuid)
         # Link inline dptools (will be run when ready to start transfer)
         # to the call_uuid job
         outbound_str = "socket:%s async full" \
-                        % (self.get_server().fs_out_address)
+            % (self.get_server().fs_out_address)
         self.xfer_jobs[call_uuid] = outbound_str
         # Transfer into sleep state a little waiting for real transfer
         res = self.api("uuid_transfer %s 'sleep:5000' inline" % call_uuid)
@@ -780,13 +819,14 @@ class RESTInboundSocket(InboundEventSocket):
             del self.xfer_jobs[call_uuid]
         except KeyError:
             pass
-        self.log.error("TransferCall Spawning Failed for %s : %s" \
-                        % (call_uuid, str(res.get_response())))
+        self.log.error("TransferCall Spawning Failed for %s : %s"
+                       % (call_uuid, str(res.get_response())))
         return False
 
     def hangup_call(self, call_uuid="", request_uuid=""):
         if not call_uuid and not request_uuid:
-            self.log.error("Call Hangup Failed -- Missing CallUUID or RequestUUID")
+            self.log.error(
+                "Call Hangup Failed -- Missing CallUUID or RequestUUID")
             return False
         if call_uuid:
             callid = "CallUUID %s" % call_uuid
@@ -796,14 +836,14 @@ class RESTInboundSocket(InboundEventSocket):
             try:
                 call_req = self.call_requests[request_uuid]
             except (KeyError, AttributeError):
-                self.log.error("Call Hangup Failed -- %s not found" \
-                            % (callid))
+                self.log.error("Call Hangup Failed -- %s not found"
+                               % (callid))
                 return False
             cmd = "hupall NORMAL_CLEARING plivo_request_uuid %s" % request_uuid
         res = self.api(cmd)
         if not res.is_success():
-            self.log.error("Call Hangup Failed for %s -- %s" \
-                % (callid, res.get_response()))
+            self.log.error("Call Hangup Failed for %s -- %s"
+                           % (callid, res.get_response()))
             return False
         self.log.info("Executed Call Hangup for %s" % callid)
         return True
@@ -830,12 +870,12 @@ class RESTInboundSocket(InboundEventSocket):
             bg_api_response = self.bgapi(cmd)
             job_uuid = bg_api_response.get_job_uuid()
             if not job_uuid:
-                self.log.error("Conference Api (async) Failed '%s' -- JobUUID not received" \
-                                        % (cmd))
+                self.log.error("Conference Api (async) Failed '%s' -- JobUUID not received"
+                               % (cmd))
                 return False
             self.conf_sync_jobs[job_uuid] = True
-            self.log.info("Conference Api (async) '%s' with JobUUID %s" \
-                                    % (cmd, job_uuid))
+            self.log.info("Conference Api (async) '%s' with JobUUID %s"
+                          % (cmd, job_uuid))
             return True
         # sync mode
         else:
@@ -843,18 +883,18 @@ class RESTInboundSocket(InboundEventSocket):
             bg_api_response = self.bgapi(cmd)
             job_uuid = bg_api_response.get_job_uuid()
             if not job_uuid:
-                self.log.error("Conference Api (async) Failed '%s' -- JobUUID not received" \
-                                        % (cmd))
+                self.log.error("Conference Api (async) Failed '%s' -- JobUUID not received"
+                               % (cmd))
                 return False
-            self.log.info("Conference Api (sync) '%s' with JobUUID %s" \
-                                    % (cmd, job_uuid))
+            self.log.info("Conference Api (sync) '%s' with JobUUID %s"
+                          % (cmd, job_uuid))
             self.conf_sync_jobs[job_uuid] = res
             try:
                 result = res.wait(timeout=120)
                 return result
             except gevent.timeout.Timeout:
-                self.log.error("Conference Api (sync) '%s' with JobUUID %s -- timeout getting response" \
-                                    % (cmd, job_uuid))
+                self.log.error("Conference Api (sync) '%s' with JobUUID %s -- timeout getting response"
+                               % (cmd, job_uuid))
                 return False
         return False
 
@@ -887,7 +927,8 @@ class RESTInboundSocket(InboundEventSocket):
             self.log.error("%s Failed -- Missing Sounds" % name)
             return False
         if not legs in ('aleg', 'bleg', 'both'):
-            self.log.error("%s Failed -- Invalid legs arg '%s'" % (name, str(legs)))
+            self.log.error("%s Failed -- Invalid legs arg '%s'" %
+                           (name, str(legs)))
             return False
 
         # get sound files
@@ -922,10 +963,11 @@ class RESTInboundSocket(InboundEventSocket):
             for displace in self._get_displace_media_list(call_uuid):
                 cmd = "uuid_displace %s stop %s" % (call_uuid, displace)
                 cmds.append(cmd)
-            cmd = "uuid_displace %s start %s %d %s" % (call_uuid, play_aleg, length, aflags)
+            cmd = "uuid_displace %s start %s %d %s" % (
+                call_uuid, play_aleg, length, aflags)
             cmds.append(cmd)
         # bleg case
-        elif legs  == 'bleg':
+        elif legs == 'bleg':
             # get bleg
             bleg = self.get_var("bridge_uuid", uuid=call_uuid)
             # add displace command
@@ -933,7 +975,8 @@ class RESTInboundSocket(InboundEventSocket):
                 for displace in self._get_displace_media_list(call_uuid):
                     cmd = "uuid_displace %s stop %s" % (call_uuid, displace)
                     cmds.append(cmd)
-                cmd = "uuid_displace %s start %s %d %s" % (call_uuid, play_bleg, length, bflags)
+                cmd = "uuid_displace %s start %s %d %s" % (
+                    call_uuid, play_bleg, length, bflags)
                 cmds.append(cmd)
             else:
                 self.log.error("%s Failed -- No BLeg found" % name)
@@ -946,11 +989,13 @@ class RESTInboundSocket(InboundEventSocket):
             for displace in self._get_displace_media_list(call_uuid):
                 cmd = "uuid_displace %s stop %s" % (call_uuid, displace)
                 cmds.append(cmd)
-            cmd = "uuid_displace %s start %s %d %s" % (call_uuid, play_aleg, length, aflags)
+            cmd = "uuid_displace %s start %s %d %s" % (
+                call_uuid, play_aleg, length, aflags)
             cmds.append(cmd)
             # get the bleg
             if bleg:
-                cmd = "uuid_displace %s start %s %d %s" % (call_uuid, play_bleg, length, bflags)
+                cmd = "uuid_displace %s start %s %d %s" % (
+                    call_uuid, play_bleg, length, bflags)
                 cmds.append(cmd)
             else:
                 self.log.warn("%s -- No BLeg found" % name)
@@ -963,7 +1008,8 @@ class RESTInboundSocket(InboundEventSocket):
             for cmd in cmds:
                 res = self.api(cmd)
                 if not res.is_success():
-                    self.log.error("%s Failed '%s' -- %s" % (name, cmd, res.get_response()))
+                    self.log.error("%s Failed '%s' -- %s" %
+                                   (name, cmd, res.get_response()))
                     error_count += 1
             if error_count > 0:
                 return False
@@ -975,9 +1021,11 @@ class RESTInboundSocket(InboundEventSocket):
             sched_cmd = "sched_api +%d %s %s" % (schedule, sched_id, cmd)
             res = self.api(sched_cmd)
             if res.is_success():
-                self.log.info("%s '%s' with SchedPlayId %s" % (name, sched_cmd, sched_id))
+                self.log.info("%s '%s' with SchedPlayId %s" %
+                              (name, sched_cmd, sched_id))
             else:
-                self.log.error("%s Failed '%s' -- %s" % (name, sched_cmd, res.get_response()))
+                self.log.error("%s Failed '%s' -- %s" %
+                               (name, sched_cmd, res.get_response()))
                 error_count += 1
         if error_count > 0:
             return False
@@ -1002,7 +1050,8 @@ class RESTInboundSocket(InboundEventSocket):
             bg_api_response = self.bgapi(cmd)
             job_uuid = bg_api_response.get_job_uuid()
             if not job_uuid:
-                self.log.error("PlayStop Failed '%s' -- JobUUID not received" % cmd)
+                self.log.error("PlayStop Failed '%s' -- JobUUID not received" %
+                               cmd)
                 error_count += 1
         if error_count > 0:
             return False
@@ -1055,9 +1104,6 @@ class RESTInboundSocket(InboundEventSocket):
         res = self.api(cmd)
         if res.is_success():
             return True
-        self.log.error("SoundTouch Failed '%s' -- %s" % (cmd, res.get_response()))
+        self.log.error("SoundTouch Failed '%s' -- %s" %
+                       (cmd, res.get_response()))
         return False
-
-
-
-
