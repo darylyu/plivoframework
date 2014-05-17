@@ -18,10 +18,12 @@ from flask import request
 from werkzeug.exceptions import Unauthorized
 import gevent.queue
 
-from plivo.rest.freeswitch.helpers import is_valid_url, get_conf_value, \
-                                            get_post_param, get_resource, \
-                                            normalize_url_space, \
-                                            HTTPRequest
+from plivo.rest.freeswitch.helpers import (is_valid_url,
+        get_conf_value,
+        get_post_param,
+        get_resource,
+        normalize_url_space,
+        HTTPRequest)
 import plivo.rest.freeswitch.elements as elements
 
 MAX_LOOPS = elements.MAX_LOOPS
@@ -36,13 +38,12 @@ def auth_protect(decorated_func):
     return wrapper
 
 
-
 class Gateway(object):
     __slots__ = ('__weakref__',
                  'request_uuid',
                  'to', 'gw', 'codecs',
                  'timeout'
-                )
+                 )
 
     def __init__(self, request_uuid, to, gw, codecs, timeout):
         self.request_uuid = request_uuid
@@ -69,10 +70,10 @@ class CallRequest(object):
                  '_from',
                  '_accountsid',
                  '_qe',
-                )
+                 )
 
     def __init__(self, request_uuid, gateways,
-                 answer_url, ring_url, hangup_url, 
+                 answer_url, ring_url, hangup_url,
                  to='', _from='', accountsid='',
                  extra_dial_string=''):
         self.request_uuid = request_uuid
@@ -99,9 +100,9 @@ class CallRequest(object):
     def __repr__(self):
         return "<CallRequest RequestUUID=%s AccountSID=%s To=%s From=%s Gateways=%s AnswerUrl=%s RingUrl=%s HangupUrl=%s StateFlag=%s ExtraDialString=%s>" \
             % (self.request_uuid, self._accountsid, self.gateways, self.to, self._from,
-               self.answer_url, self.ring_url, self.hangup_url, str(self.state_flag),
+               self.answer_url, self.ring_url, self.hangup_url, str(
+                   self.state_flag),
                str(self.extra_dial_string))
-
 
 
 class PlivoRestApi(object):
@@ -149,9 +150,11 @@ class PlivoRestApi(object):
         sound_files = []
         if not remote_url:
             return sound_files
-        self._rest_inbound_socket.log.info('Fetching remote sound from restxml %s' % remote_url)
+        self._rest_inbound_socket.log.info(
+            'Fetching remote sound from restxml %s' % remote_url)
         try:
-            response = self._rest_inbound_socket.send_to_url(remote_url, params={}, method='POST')
+            response = self._rest_inbound_socket.send_to_url(
+                remote_url, params={}, method='POST')
             doc = etree.fromstring(response)
             if doc.tag != 'Response':
                 self._rest_inbound_socket.log.warn('No Response Tag Present')
@@ -166,10 +169,12 @@ class PlivoRestApi(object):
                     child_instance.prepare(self._rest_inbound_socket)
                     sound_file = child_instance.sound_file_path
                     if sound_file:
-                        sound_file = get_resource(self._rest_inbound_socket, sound_file)
+                        sound_file = get_resource(
+                            self._rest_inbound_socket, sound_file)
                         loop = child_instance.loop_times
                         if loop == 0:
-                            loop = MAX_LOOPS  # Add a high number to Play infinitely
+                            # Add a high number to Play infinitely
+                            loop = MAX_LOOPS
                         # Play the file loop number of times
                         for i in range(loop):
                             sound_files.append(sound_file)
@@ -190,7 +195,7 @@ class PlivoRestApi(object):
                     if child_type and method:
                         language = child_instance.language
                         say_args = "%s.wav %s %s %s '%s'" \
-                                        % (language, language, child_type, method, text)
+                            % (language, language, child_type, method, text)
                         say_str = "${say_string %s}" % say_args
                     else:
                         engine = child_instance.engine
@@ -208,15 +213,17 @@ class PlivoRestApi(object):
                     pause_str = 'file_string://silence_stream://%s' % (pause_secs * 1000)
                     sound_files.append(pause_str)
         except Exception, e:
-            self._rest_inbound_socket.log.warn('Fetching remote sound from restxml failed: %s' % str(e))
+            self._rest_inbound_socket.log.warn(
+                'Fetching remote sound from restxml failed: %s' % str(e))
         finally:
-            self._rest_inbound_socket.log.info('Fetching remote sound from restxml done for %s' % remote_url)
+            self._rest_inbound_socket.log.info(
+                'Fetching remote sound from restxml done for %s' % remote_url)
             return sound_files
 
-
-    def _prepare_call_request(self, caller_id, caller_name, to, extra_dial_string, gw, gw_codecs,
-                                gw_timeouts, gw_retries, send_digits, send_preanswer, time_limit,
-                                hangup_on_ring, answer_url, ring_url, hangup_url, accountsid=''):
+    def _prepare_call_request(
+            self, caller_id, caller_name, to, extra_dial_string, gw, gw_codecs,
+            gw_timeouts, gw_retries, send_digits, send_preanswer, time_limit,
+            hangup_on_ring, answer_url, ring_url, hangup_url, accountsid=''):
         gateways = []
         gw_retry_list = []
         gw_codec_list = []
@@ -230,7 +237,7 @@ class PlivoRestApi(object):
         # split gw codecs by , but only outside the ''
         if gw_codecs:
             gw_codec_list = re.split(''',(?=(?:[^'"]|'[^']*'|"[^"]*")*$)''',
-                                                                    gw_codecs)
+                                     gw_codecs)
         if gw_timeouts:
             gw_timeout_list = gw_timeouts.split(',')
         if gw_retries:
@@ -249,7 +256,7 @@ class PlivoRestApi(object):
 
         # set extra_dial_string
         if extra_dial_string:
-             args_list.append(extra_dial_string)
+            args_list.append(extra_dial_string)
 
         if accountsid:
             args_list.append("plivo_accountsid=%s" % accountsid)
@@ -266,20 +273,21 @@ class PlivoRestApi(object):
             args_list.append("execute_on_ring='hangup ORIGINATOR_CANCEL'")
             exec_on_media += 1
         elif hangup_on_ring > 0:
-            args_list.append("execute_on_media_%d='sched_hangup +%d ORIGINATOR_CANCEL'" \
-                                                        % (exec_on_media, hangup_on_ring))
-            args_list.append("execute_on_ring='sched_hangup +%d ORIGINATOR_CANCEL'" \
-                                                        % hangup_on_ring)
+            args_list.append("execute_on_media_%d='sched_hangup +%d ORIGINATOR_CANCEL'"
+                             % (exec_on_media, hangup_on_ring))
+            args_list.append("execute_on_ring='sched_hangup +%d ORIGINATOR_CANCEL'"
+                             % hangup_on_ring)
             exec_on_media += 1
 
         # set send_digits
         if send_digits:
             if send_preanswer:
-                args_list.append("execute_on_media_%d='send_dtmf %s'" \
-                                                    % (exec_on_media, send_digits))
+                args_list.append("execute_on_media_%d='send_dtmf %s'"
+                                 % (exec_on_media, send_digits))
                 exec_on_media += 1
             else:
-                args_list.append("execute_on_answer='send_dtmf %s'" % send_digits)
+                args_list.append("execute_on_answer='send_dtmf %s'" %
+                                 send_digits)
 
         # set time_limit
         try:
@@ -289,8 +297,8 @@ class PlivoRestApi(object):
         if time_limit > 0:
             # create sched_hangup_id
             sched_hangup_id = str(uuid.uuid1())
-            args_list.append("api_on_answer_1='sched_api +%d %s hupall ALLOTTED_TIMEOUT plivo_request_uuid %s'" \
-                                                % (time_limit, sched_hangup_id, request_uuid))
+            args_list.append("api_on_answer_1='sched_api +%d %s hupall ALLOTTED_TIMEOUT plivo_request_uuid %s'"
+                             % (time_limit, sched_hangup_id, request_uuid))
             args_list.append("plivo_sched_hangup_id=%s" % sched_hangup_id)
 
         # set plivo_from / plivo_to
@@ -317,25 +325,28 @@ class PlivoRestApi(object):
             try:
                 timeout = int(gw_timeout_list.pop(0))
             except (ValueError, IndexError):
-                timeout = 60 # TODO allow no timeout ?
+                timeout = 60  # TODO allow no timeout ?
             for i in range(retry):
                 gateway = Gateway(request_uuid, to, gw, codecs, timeout)
                 gateways.append(gateway)
 
-        call_req = CallRequest(request_uuid, gateways, answer_url, ring_url, hangup_url, 
-                               to=to, _from=caller_id, accountsid=accountsid,
-                               extra_dial_string=args_str)
+        call_req = CallRequest(
+            request_uuid, gateways, answer_url, ring_url, hangup_url,
+            to=to, _from=caller_id, accountsid=accountsid,
+            extra_dial_string=args_str)
         return call_req
 
     @staticmethod
     def _parse_conference_xml_list(xmlstr, member_filter=None, uuid_filter=None, mute_filter=False, deaf_filter=False):
         res = {}
         if member_filter:
-            mfilter = tuple( [ mid.strip() for mid in member_filter.split(',') if mid != '' ])
+            mfilter = tuple([mid.strip()
+                            for mid in member_filter.split(',') if mid != ''])
         else:
             mfilter = ()
         if uuid_filter:
-            ufilter = tuple( [ uid.strip() for uid in uuid_filter.split(',') if uid != '' ])
+            ufilter = tuple([uid.strip()
+                            for uid in uuid_filter.split(',') if uid != ''])
         else:
             ufilter = ()
 
@@ -406,8 +417,8 @@ class PlivoRestApi(object):
     def reload_config(self):
         """Reload plivo config for rest server
         """
-        self._rest_inbound_socket.log.debug("RESTAPI Reload with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI Reload with %s"
+                                            % str(request.form.items()))
         msg = "Plivo config reload failed"
         result = False
 
@@ -415,7 +426,8 @@ class PlivoRestApi(object):
             try:
                 self._rest_inbound_socket.get_server().reload()
                 extra = "rest_server"
-                outbound_pidfile = self._rest_inbound_socket.get_server().fs_out_pidfile
+                outbound_pidfile = self._rest_inbound_socket.get_server(
+                ).fs_out_pidfile
                 if outbound_pidfile:
                     try:
                         pid = int(open(outbound_pidfile, 'r').read().strip())
@@ -437,8 +449,8 @@ class PlivoRestApi(object):
     def reload_cache_config(self):
         """Reload plivo cache server config
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ReloadCacheConfig with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ReloadCacheConfig with %s"
+                                            % str(request.form.items()))
         msg = "ReloadCacheConfig Failed"
         result = False
 
@@ -451,7 +463,8 @@ class PlivoRestApi(object):
 
         try:
             req = HTTPRequest(auth_id=self.key, auth_token=self.secret)
-            data = req.fetch_response(cache_api_url + '/ReloadConfig/', params={}, method='POST')
+            data = req.fetch_response(
+                cache_api_url + '/ReloadConfig/', params={}, method='POST')
             res = json.loads(data)
             try:
                 success = res['Success']
@@ -468,11 +481,11 @@ class PlivoRestApi(object):
 
         except Exception, e:
             msg = "Plivo Cache Server config reload failed"
-            self._rest_inbound_socket.log.error("ReloadCacheConfig Failed -- %s" % str(e))
+            self._rest_inbound_socket.log.error(
+                "ReloadCacheConfig Failed -- %s" % str(e))
             result = False
 
         return self.send_response(Success=result, Message=msg)
-
 
     @auth_protect
     def call(self):
@@ -537,8 +550,8 @@ class PlivoRestApi(object):
 
         [SendOnPreanswer]: SendDigits on early media instead of answer.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI Call with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI Call with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
         request_uuid = ""
@@ -567,27 +580,29 @@ class PlivoRestApi(object):
                 gw_timeouts = get_post_param(request, 'GatewayTimeouts')
                 gw_retries = get_post_param(request, 'GatewayRetries')
                 send_digits = get_post_param(request, 'SendDigits')
-                send_preanswer = get_post_param(request, 'SendOnPreanswer') == 'true'
+                send_preanswer = get_post_param(
+                    request, 'SendOnPreanswer') == 'true'
                 time_limit = get_post_param(request, 'TimeLimit')
                 hangup_on_ring = get_post_param(request, 'HangupOnRing')
                 caller_name = get_post_param(request, 'CallerName') or ''
                 accountsid = get_post_param(request, 'AccountSID') or ''
 
                 call_req = self._prepare_call_request(
-                                    caller_id, caller_name, to, extra_dial_string,
-                                    gw, gw_codecs, gw_timeouts, gw_retries,
-                                    send_digits, send_preanswer, time_limit, hangup_on_ring,
-                                    answer_url, ring_url, hangup_url, accountsid)
+                    caller_id, caller_name, to, extra_dial_string,
+                    gw, gw_codecs, gw_timeouts, gw_retries,
+                    send_digits, send_preanswer, time_limit, hangup_on_ring,
+                    answer_url, ring_url, hangup_url, accountsid)
 
                 request_uuid = call_req.request_uuid
-                self._rest_inbound_socket.call_requests[request_uuid] = call_req
+                self._rest_inbound_socket.call_requests[
+                    request_uuid] = call_req
                 self._rest_inbound_socket.spawn_originate(request_uuid)
                 msg = "Call Request Executed"
                 result = True
 
         return self.send_response(Success=result,
-                             Message=msg,
-                             RequestUUID=request_uuid)
+                                  Message=msg,
+                                  RequestUUID=request_uuid)
 
     @auth_protect
     def bulk_call(self):
@@ -653,8 +668,8 @@ class PlivoRestApi(object):
 
         [SendOnPreanswer]: SendDigits on early media instead of answer.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI BulkCall with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI BulkCall with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
         request_uuid = ""
@@ -671,7 +686,7 @@ class PlivoRestApi(object):
         if delimiter in (',', '/'):
             msg = "This Delimiter is not allowed"
         elif not caller_id or not to_str or not gw_str or not answer_url or\
-            not delimiter:
+                not delimiter:
             msg = "Mandatory Parameters Missing"
         elif not is_valid_url(answer_url):
             msg = "AnswerUrl is not Valid"
@@ -686,7 +701,7 @@ class PlivoRestApi(object):
                 msg = "RingUrl is not Valid"
             else:
                 extra_dial_string = get_post_param(request,
-                                                        'ExtraDialString')
+                                                   'ExtraDialString')
                 # Is a string of strings
                 gw_codecs_str = get_post_param(request, 'GatewayCodecs')
                 gw_timeouts_str = get_post_param(request, 'GatewayTimeouts')
@@ -748,15 +763,15 @@ class PlivoRestApi(object):
                         except IndexError:
                             caller_name = ""
 
-
                         call_req = self._prepare_call_request(
-                                    caller_id, caller_name, to, extra_dial_string,
-                                    gw_str_list[i], gw_codecs, gw_timeouts, gw_retries,
-                                    send_digits, send_preanswer, time_limit, hangup_on_ring,
-                                    answer_url, ring_url, hangup_url, accountsid)
+                            caller_id, caller_name, to, extra_dial_string,
+                            gw_str_list[i], gw_codecs, gw_timeouts, gw_retries,
+                            send_digits, send_preanswer, time_limit, hangup_on_ring,
+                            answer_url, ring_url, hangup_url, accountsid)
                         request_uuid = call_req.request_uuid
                         request_uuid_list.append(request_uuid)
-                        self._rest_inbound_socket.call_requests[request_uuid] = call_req
+                        self._rest_inbound_socket.call_requests[
+                            request_uuid] = call_req
                         i += 1
 
                     # now do the calls !
@@ -768,7 +783,7 @@ class PlivoRestApi(object):
                         request_uuid_list = []
 
         return self.send_response(Success=result, Message=msg,
-                             RequestUUID=request_uuid_list)
+                                  RequestUUID=request_uuid_list)
 
     @auth_protect
     def hangup_call(self):
@@ -788,13 +803,13 @@ class PlivoRestApi(object):
         RequestUUID: Unique request ID which was given on a API response. This
         should be used for calls which are currently in progress and have no CallUUID.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI HangupCall with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI HangupCall with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
         call_uuid = get_post_param(request, 'CallUUID')
-        request_uuid= get_post_param(request, 'RequestUUID')
+        request_uuid = get_post_param(request, 'RequestUUID')
 
         if not call_uuid and not request_uuid:
             msg = "CallUUID or RequestUUID Parameter must be present"
@@ -853,8 +868,8 @@ class PlivoRestApi(object):
 
     @auth_protect
     def hangup_all_calls(self):
-        self._rest_inbound_socket.log.debug("RESTAPI HangupAllCalls with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI HangupAllCalls with %s"
+                                            % str(request.form.items()))
         """Hangup All Live Calls in the system
         """
         msg = "All Calls Hungup"
@@ -897,7 +912,7 @@ class PlivoRestApi(object):
                     msg = "Time Parameter must be > 0 !"
                 else:
                     sched_id = str(uuid.uuid1())
-                    res = self._rest_inbound_socket.api("sched_api +%d %s uuid_kill %s ALLOTTED_TIMEOUT" \
+                    res = self._rest_inbound_socket.api("sched_api +%d %s uuid_kill %s ALLOTTED_TIMEOUT"
                                                         % (time, sched_id, call_uuid))
                     if res.is_success():
                         msg = "ScheduleHangup Done with SchedHangupId %s" % sched_id
@@ -920,8 +935,8 @@ class PlivoRestApi(object):
         ---------------
         SchedHangupId: id of the scheduled hangup.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ScheduleHangup with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ScheduleHangup with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -934,7 +949,8 @@ class PlivoRestApi(object):
                 msg = "Scheduled Hangup Canceled"
                 result = True
             else:
-                msg = "Scheduled Hangup Cancelation Failed: %s" % res.get_response()
+                msg = "Scheduled Hangup Cancelation Failed: %s" % res.get_response(
+                )
         return self.send_response(Success=result, Message=msg)
 
     @auth_protect
@@ -950,8 +966,8 @@ class PlivoRestApi(object):
         FileName: Default empty, if given this will be used for the recording
         TimeLimit: Max recording duration in seconds
         """
-        self._rest_inbound_socket.log.debug("RESTAPI RecordStart with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI RecordStart with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -974,16 +990,18 @@ class PlivoRestApi(object):
             try:
                 timelimit = int(timelimit)
             except ValueError:
-                msg = "RecordStart Failed: invalid TimeLimit '%s'" % str(timelimit)
+                msg = "RecordStart Failed: invalid TimeLimit '%s'" % str(
+                    timelimit)
                 return self.send_response(Success=result, Message=msg)
 
         if filepath:
             filepath = os.path.normpath(filepath) + os.sep
         if not filename:
-            filename = "%s_%s" % (datetime.now().strftime("%Y%m%d-%H%M%S"), calluuid)
+            filename = "%s_%s" % (
+                datetime.now().strftime("%Y%m%d-%H%M%S"), calluuid)
         recordfile = "%s%s.%s" % (filepath, filename, fileformat)
-        res = self._rest_inbound_socket.api("uuid_record %s start %s %d" \
-                % (calluuid, recordfile, timelimit))
+        res = self._rest_inbound_socket.api("uuid_record %s start %s %d"
+                                            % (calluuid, recordfile, timelimit))
         if res.is_success():
             msg = "RecordStart Executed with RecordFile %s" % recordfile
             result = True
@@ -1003,8 +1021,8 @@ class PlivoRestApi(object):
         RecordFile: full file path to the recording file (the one returned by RecordStart)
                     or 'all' to stop all current recordings on this call
         """
-        self._rest_inbound_socket.log.debug("RESTAPI RecordStop with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI RecordStop with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1016,8 +1034,8 @@ class PlivoRestApi(object):
         if not recordfile:
             msg = "RecordFile Parameter must be present"
             return self.send_response(Success=result, Message=msg)
-        res = self._rest_inbound_socket.api("uuid_record %s stop %s" \
-                % (calluuid, recordfile))
+        res = self._rest_inbound_socket.api("uuid_record %s stop %s"
+                                            % (calluuid, recordfile))
         if res.is_success():
             msg = "RecordStop Executed"
             result = True
@@ -1037,8 +1055,8 @@ class PlivoRestApi(object):
         MemberID: conference member id or list of comma separated member ids to mute
                 or 'all' to mute all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceMute with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceMute with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1054,13 +1072,17 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
         # mute members
         for member in member_id.split(','):
-            res = self._rest_inbound_socket.conference_api(room, "mute %s" % member, async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "mute %s" % member, async=False)
             if not res or res[:2] != 'OK':
-                self._rest_inbound_socket.log.warn("Conference Mute Failed for %s" % str(member))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Mute Failed for %s" % str(member))
             elif res.startswith('Conference %s not found' % str(room)) or res.startswith('Non-Existant'):
-                self._rest_inbound_socket.log.warn("Conference Mute %s for %s" % (str(res), str(member)))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Mute %s for %s" % (str(res), str(member)))
             else:
-                self._rest_inbound_socket.log.debug("Conference Mute done for %s" % str(member))
+                self._rest_inbound_socket.log.debug(
+                    "Conference Mute done for %s" % str(member))
                 members.append(member)
         msg = "Conference Mute Executed"
         result = True
@@ -1077,8 +1099,8 @@ class PlivoRestApi(object):
         MemberID: conference member id or list of comma separated member ids to mute
                 or 'all' to unmute all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceUnmute with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceUnmute with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1094,13 +1116,17 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
         # unmute members
         for member in member_id.split(','):
-            res = self._rest_inbound_socket.conference_api(room, "unmute %s" % member, async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "unmute %s" % member, async=False)
             if not res or res[:2] != 'OK':
-                self._rest_inbound_socket.log.warn("Conference Unmute Failed for %s" % str(member))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Unmute Failed for %s" % str(member))
             elif res.startswith('Conference %s not found' % str(room)) or res.startswith('Non-Existant'):
-                self._rest_inbound_socket.log.warn("Conference Unmute %s for %s" % (str(res), str(member)))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Unmute %s for %s" % (str(res), str(member)))
             else:
-                self._rest_inbound_socket.log.debug("Conference Unmute done for %s" % str(member))
+                self._rest_inbound_socket.log.debug(
+                    "Conference Unmute done for %s" % str(member))
                 members.append(member)
         msg = "Conference Unmute Executed"
         result = True
@@ -1117,8 +1143,8 @@ class PlivoRestApi(object):
         MemberID: conference member id or list of comma separated member ids to mute
                 or 'all' to kick all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceKick with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceKick with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1134,13 +1160,17 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
         # kick members
         for member in member_id.split(','):
-            res = self._rest_inbound_socket.conference_api(room, "kick %s" % member, async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "kick %s" % member, async=False)
             if not res:
-                self._rest_inbound_socket.log.warn("Conference Kick Failed for %s" % str(member))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Kick Failed for %s" % str(member))
             elif res.startswith('Conference %s not found' % str(room)) or res.startswith('Non-Existant'):
-                self._rest_inbound_socket.log.warn("Conference Kick %s for %s" % (str(res), str(member)))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Kick %s for %s" % (str(res), str(member)))
             else:
-                self._rest_inbound_socket.log.debug("Conference Kick done for %s" % str(member))
+                self._rest_inbound_socket.log.debug(
+                    "Conference Kick done for %s" % str(member))
                 members.append(member)
         msg = "Conference Kick Executed"
         result = True
@@ -1157,8 +1187,8 @@ class PlivoRestApi(object):
         MemberID: conference member id or list of comma separated member ids to mute
                 or 'all' to hangup all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceHangup with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceHangup with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1174,13 +1204,17 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
         # hangup members
         for member in member_id.split(','):
-            res = self._rest_inbound_socket.conference_api(room, "hup %s" % member, async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "hup %s" % member, async=False)
             if not res:
-                self._rest_inbound_socket.log.warn("Conference Hangup Failed for %s" % str(member))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Hangup Failed for %s" % str(member))
             elif res.startswith('Conference %s not found' % str(room)) or res.startswith('Non-Existant'):
-                self._rest_inbound_socket.log.warn("Conference Hangup %s for %s" % (str(res), str(member)))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Hangup %s for %s" % (str(res), str(member)))
             else:
-                self._rest_inbound_socket.log.debug("Conference Hangup done for %s" % str(member))
+                self._rest_inbound_socket.log.debug(
+                    "Conference Hangup done for %s" % str(member))
                 members.append(member)
         msg = "Conference Hangup Executed"
         result = True
@@ -1197,8 +1231,8 @@ class PlivoRestApi(object):
         MemberID: conference member id or list of comma separated member ids to mute
                 or 'all' to deaf all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceDeaf with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceDeaf with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1214,13 +1248,17 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
         # deaf members
         for member in member_id.split(','):
-            res = self._rest_inbound_socket.conference_api(room, "deaf %s" % member, async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "deaf %s" % member, async=False)
             if not res or res[:2] != 'OK':
-                self._rest_inbound_socket.log.warn("Conference Deaf Failed for %s" % str(member))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Deaf Failed for %s" % str(member))
             elif res.startswith('Conference %s not found' % str(room)) or res.startswith('Non-Existant'):
-                self._rest_inbound_socket.log.warn("Conference Deaf %s for %s" % (str(res), str(member)))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Deaf %s for %s" % (str(res), str(member)))
             else:
-                self._rest_inbound_socket.log.debug("Conference Deaf done for %s" % str(member))
+                self._rest_inbound_socket.log.debug(
+                    "Conference Deaf done for %s" % str(member))
                 members.append(member)
         msg = "Conference Deaf Executed"
         result = True
@@ -1237,8 +1275,8 @@ class PlivoRestApi(object):
         MemberID: conference member id or list of comma separated member ids to mute
                 or 'all' to undeaf all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceUndeaf with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceUndeaf with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1254,13 +1292,17 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
         # deaf members
         for member in member_id.split(','):
-            res = self._rest_inbound_socket.conference_api(room, "undeaf %s" % member, async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "undeaf %s" % member, async=False)
             if not res or res[:2] != 'OK':
-                self._rest_inbound_socket.log.warn("Conference Undeaf Failed for %s" % str(member))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Undeaf Failed for %s" % str(member))
             elif res.startswith('Conference %s not found' % str(room)) or res.startswith('Non-Existant'):
-                self._rest_inbound_socket.log.warn("Conference Undeaf %s for %s" % (str(res), str(member)))
+                self._rest_inbound_socket.log.warn(
+                    "Conference Undeaf %s for %s" % (str(res), str(member)))
             else:
-                self._rest_inbound_socket.log.debug("Conference Undeaf done for %s" % str(member))
+                self._rest_inbound_socket.log.debug(
+                    "Conference Undeaf done for %s" % str(member))
                 members.append(member)
         msg = "Conference Undeaf Executed"
         result = True
@@ -1278,8 +1320,8 @@ class PlivoRestApi(object):
         FilePath: complete file path to save the file to
         FileName: Default empty, if given this will be used for the recording
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceRecordStart with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceRecordStart with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1300,10 +1342,12 @@ class PlivoRestApi(object):
         if filepath:
             filepath = os.path.normpath(filepath) + os.sep
         if not filename:
-            filename = "%s_%s" % (datetime.now().strftime("%Y%m%d-%H%M%S"), room)
+            filename = "%s_%s" % (
+                datetime.now().strftime("%Y%m%d-%H%M%S"), room)
         recordfile = "%s%s.%s" % (filepath, filename, fileformat)
 
-        res = self._rest_inbound_socket.conference_api(room, "record %s" % recordfile, async=False)
+        res = self._rest_inbound_socket.conference_api(
+            room, "record %s" % recordfile, async=False)
         if not res:
             msg = "Conference RecordStart Failed"
             result = False
@@ -1327,8 +1371,8 @@ class PlivoRestApi(object):
         RecordFile: full file path to the recording file (the one returned by ConferenceRecordStart)
                     or 'all' to stop all current recordings on conference
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceRecordStop with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceRecordStop with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1343,8 +1387,8 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
 
         res = self._rest_inbound_socket.conference_api(room,
-                                        "norecord %s" % recordfile,
-                                        async=False)
+                                                       "norecord %s" % recordfile,
+                                                       async=False)
         if not res:
             msg = "Conference RecordStop Failed"
             result = False
@@ -1368,8 +1412,8 @@ class PlivoRestApi(object):
         FilePath: full path to file to be played
         MemberID: conference member id or 'all' to play file to all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferencePlay with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferencePlay with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1394,9 +1438,11 @@ class PlivoRestApi(object):
         if is_valid_url(filepath):
             url = normalize_url_space(filepath)
             filepath = get_resource(self, url)
-            res = self._rest_inbound_socket.conference_api(room, "play '%s' %s" % (filepath, arg), async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "play '%s' %s" % (filepath, arg), async=False)
         else:
-            res = self._rest_inbound_socket.conference_api(room, "play %s %s" % (filepath, arg), async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "play %s %s" % (filepath, arg), async=False)
         if not res:
             msg = "Conference Play Failed"
             result = False
@@ -1420,8 +1466,8 @@ class PlivoRestApi(object):
         Text: text to say in conference
         MemberID: conference member id or 'all' to say text to all members
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceSpeak with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceSpeak with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1439,9 +1485,11 @@ class PlivoRestApi(object):
             msg = "MemberID Parameter must be present"
             return self.send_response(Success=result, Message=msg)
         if member_id == 'all':
-            res = self._rest_inbound_socket.conference_api(room, "say '%s'" % text, async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "say '%s'" % text, async=False)
         else:
-            res = self._rest_inbound_socket.conference_api(room, "saymember %s '%s'" % (member_id, text), async=False)
+            res = self._rest_inbound_socket.conference_api(
+                room, "saymember %s '%s'" % (member_id, text), async=False)
         if not res:
             msg = "Conference Speak Failed"
             result = False
@@ -1473,8 +1521,8 @@ class PlivoRestApi(object):
 
         All Filter parameters can be mixed.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceListMembers with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceListMembers with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1489,7 +1537,8 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
         if not members:
             members = None
-        res = self._rest_inbound_socket.conference_api(room, "xml_list", async=False)
+        res = self._rest_inbound_socket.conference_api(
+            room, "xml_list", async=False)
         if not res:
             msg = "Conference ListMembers Failed"
             result = False
@@ -1499,15 +1548,17 @@ class PlivoRestApi(object):
             result = False
             return self.send_response(Success=result, Message=msg)
         try:
-            member_list = self._parse_conference_xml_list(res, member_filter=members,
-                                uuid_filter=calluuids, mute_filter=onlymuted, deaf_filter=onlydeaf)
+            member_list = self._parse_conference_xml_list(
+                res, member_filter=members,
+                uuid_filter=calluuids, mute_filter=onlymuted, deaf_filter=onlydeaf)
             msg = "Conference ListMembers Executed"
             result = True
             return self.send_response(Success=result, Message=msg, List=member_list)
         except Exception, e:
             msg = "Conference ListMembers Failed to parse result"
             result = False
-            self._rest_inbound_socket.log.error("Conference ListMembers Failed -- %s" % str(e))
+            self._rest_inbound_socket.log.error(
+                "Conference ListMembers Failed -- %s" % str(e))
             return self.send_response(Success=result, Message=msg)
 
     @auth_protect
@@ -1528,8 +1579,8 @@ class PlivoRestApi(object):
 
         All Filter parameters can be mixed.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI ConferenceList with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI ConferenceList with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1538,18 +1589,21 @@ class PlivoRestApi(object):
         onlymuted = get_post_param(request, 'MutedFilter') == 'true'
         onlydeaf = get_post_param(request, 'DeafFilter') == 'true'
 
-        res = self._rest_inbound_socket.conference_api(room='', command="xml_list", async=False)
+        res = self._rest_inbound_socket.conference_api(
+            room='', command="xml_list", async=False)
         if res:
             try:
-                confs = self._parse_conference_xml_list(res, member_filter=members,
-                                uuid_filter=calluuids, mute_filter=onlymuted, deaf_filter=onlydeaf)
+                confs = self._parse_conference_xml_list(
+                    res, member_filter=members,
+                    uuid_filter=calluuids, mute_filter=onlymuted, deaf_filter=onlydeaf)
                 msg = "Conference List Executed"
                 result = True
                 return self.send_response(Success=result, Message=msg, List=confs)
             except Exception, e:
                 msg = "Conference List Failed to parse result"
                 result = False
-                self._rest_inbound_socket.log.error("Conference List Failed -- %s" % str(e))
+                self._rest_inbound_socket.log.error(
+                    "Conference List Failed -- %s" % str(e))
                 return self.send_response(Success=result, Message=msg)
         msg = "Conference List Failed"
         return self.send_response(Success=result, Message=msg)
@@ -1626,8 +1680,8 @@ class PlivoRestApi(object):
 
         [ConfirmKey]: A one key digits the called party must press to accept the call.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI GroupCall with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI GroupCall with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
         request_uuid = str(uuid.uuid1())
@@ -1658,7 +1712,6 @@ class PlivoRestApi(object):
             msg = "RingUrl is not Valid"
             return self.send_response(Success=result, Message=msg)
 
-
         extra_dial_string = get_post_param(request, 'ExtraDialString')
         gw_codecs_str = get_post_param(request, 'GatewayCodecs')
         gw_timeouts_str = get_post_param(request, 'GatewayTimeouts')
@@ -1673,7 +1726,8 @@ class PlivoRestApi(object):
         caller_name_str = get_post_param(request, 'CallerName')
         accountsid = get_post_param(request, 'AccountSID') or ''
         if reject_causes:
-            reject_causes = " ".join([ r.strip() for r in reject_causes.split(',') ])
+            reject_causes = " ".join([r.strip()
+                                     for r in reject_causes.split(',')])
 
         to_str_list = to_str.split(delimiter)
         gw_str_list = gw_str.split(delimiter)
@@ -1692,7 +1746,6 @@ class PlivoRestApi(object):
         elif len(to_str_list) != len(gw_str_list):
             msg = "'To' parameter length does not match 'Gateways' Length"
             return self.send_response(Success=result, Message=msg)
-
 
         # set group
         group_list = []
@@ -1713,7 +1766,8 @@ class PlivoRestApi(object):
                     confirm_key_str = "group_confirm_key=exec"
                 # Cancel the leg timeout after the call is answered
                 confirm_cancel = "group_confirm_cancel_timeout=1"
-                confirm_options = "%s,%s,%s,playback_delimiter=!" % (confirm_music_str, confirm_key_str, confirm_cancel)
+                confirm_options = "%s,%s,%s,playback_delimiter=!" % (
+                    confirm_music_str, confirm_key_str, confirm_cancel)
         group_options.append(confirm_options)
 
         # build calls
@@ -1756,10 +1810,10 @@ class PlivoRestApi(object):
                 caller_name = ""
 
             call_req = self._prepare_call_request(
-                        caller_id, caller_name, to, extra_dial_string,
-                        gw, gw_codecs, gw_timeouts, gw_retries,
-                        send_digits, send_preanswer, time_limit, hangup_on_ring,
-                        answer_url, ring_url, hangup_url, accountsid)
+                caller_id, caller_name, to, extra_dial_string,
+                gw, gw_codecs, gw_timeouts, gw_retries,
+                send_digits, send_preanswer, time_limit, hangup_on_ring,
+                answer_url, ring_url, hangup_url, accountsid)
             group_list.append(call_req)
 
         # now do the calls !
@@ -1803,8 +1857,8 @@ class PlivoRestApi(object):
         [Delimiter]: The delimiter used in the sounds list (default: ',')
 
         """
-        self._rest_inbound_socket.log.debug("RESTAPI Play with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI Play with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1815,7 +1869,7 @@ class PlivoRestApi(object):
         loop = get_post_param(request, 'Loop') == 'true'
         mix = get_post_param(request, 'Mix')
         delimiter = get_post_param(request, 'Delimiter')
-        
+
         if mix == 'false':
             mix = False
         else:
@@ -1841,8 +1895,9 @@ class PlivoRestApi(object):
                 msg = "Length Parameter must be a positive integer"
                 return self.send_response(Success=result, Message=msg)
 
-        if not delimiter: delimiter = ','
-        
+        if not delimiter:
+            delimiter = ','
+
         sounds_list = sounds.split(delimiter)
         if not sounds_list:
             msg = "Sounds Parameter is Invalid"
@@ -1850,7 +1905,7 @@ class PlivoRestApi(object):
 
         # now do the job !
         if self._rest_inbound_socket.play_on_call(calluuid, sounds_list, legs,
-                                        length=length, schedule=0, mix=mix, loop=loop):
+                                                  length=length, schedule=0, mix=mix, loop=loop):
             msg = "Play Request Executed"
             result = True
             return self.send_response(Success=result, Message=msg)
@@ -1890,8 +1945,8 @@ class PlivoRestApi(object):
 
         Returns a scheduled task with id SchedPlayId that you can use to cancel play.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI SchedulePlay with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI SchedulePlay with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1944,8 +1999,9 @@ class PlivoRestApi(object):
             return self.send_response(Success=result, Message=msg)
 
         # now do the job !
-        sched_id = self._rest_inbound_socket.play_on_call(calluuid, sounds_list, legs,
-                                    length=length, schedule=time, mix=mix, loop=loop)
+        sched_id = self._rest_inbound_socket.play_on_call(
+            calluuid, sounds_list, legs,
+            length=length, schedule=time, mix=mix, loop=loop)
         if sched_id:
             msg = "SchedulePlay Request Done with SchedPlayId %s" % sched_id
             result = True
@@ -1965,8 +2021,8 @@ class PlivoRestApi(object):
         ---------------
         SchedPlayId: id of the scheduled play.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI CancelScheduledPlay with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI CancelScheduledPlay with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -1979,7 +2035,8 @@ class PlivoRestApi(object):
                 msg = "Scheduled Play Canceled"
                 result = True
             else:
-                msg = "Scheduled Play Cancelation Failed: %s" % res.get_response()
+                msg = "Scheduled Play Cancelation Failed: %s" % res.get_response(
+                )
         return self.send_response(Success=result, Message=msg)
 
     @auth_protect
@@ -2002,8 +2059,8 @@ class PlivoRestApi(object):
         CallUUID: Unique Call ID to which the action should occur to.
 
         """
-        self._rest_inbound_socket.log.debug("RESTAPI PlayStop with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI PlayStop with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -2047,8 +2104,8 @@ class PlivoRestApi(object):
         [Tempo]: Set the tempo, value should be > 0, default 1 (lower = slower)
 
         """
-        self._rest_inbound_socket.log.debug("RESTAPI SoundTouch with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI SoundTouch with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -2120,8 +2177,8 @@ class PlivoRestApi(object):
                 return self.send_response(Success=result, Message=msg)
 
         if self._rest_inbound_socket.sound_touch(calluuid,
-                        direction=audiodirection, s=pitch_s,
-                        o=pitch_o, p=pitch_p, r=pitch_r, t=pitch_t):
+                                                 direction=audiodirection, s=pitch_s,
+                                                 o=pitch_o, p=pitch_p, r=pitch_r, t=pitch_t):
             msg = "SoundTouch executed"
             result = True
         else:
@@ -2142,8 +2199,8 @@ class PlivoRestApi(object):
 
         CallUUID: Unique Call ID to which the action should occur to.
         """
-        self._rest_inbound_socket.log.debug("RESTAPI SoundTouchStop with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI SoundTouchStop with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -2155,7 +2212,8 @@ class PlivoRestApi(object):
         bg_api_response = self._rest_inbound_socket.bgapi(cmd)
         job_uuid = bg_api_response.get_job_uuid()
         if not job_uuid:
-            self._rest_inbound_socket.log.error("SoundTouchStop Failed '%s' -- JobUUID not received" % cmd)
+            self._rest_inbound_socket.log.error(
+                "SoundTouchStop Failed '%s' -- JobUUID not received" % cmd)
             msg = "SoundTouchStop Failed"
             return self.send_response(Success=result, Message=msg)
         msg = "SoundTouchStop executed"
@@ -2192,8 +2250,8 @@ class PlivoRestApi(object):
                 'bleg' means only send to the bridged leg of the Call.
                 Default is 'aleg' .
         """
-        self._rest_inbound_socket.log.debug("RESTAPI SendDigits with %s" \
-                                        % str(request.form.items()))
+        self._rest_inbound_socket.log.debug("RESTAPI SendDigits with %s"
+                                            % str(request.form.items()))
         msg = ""
         result = False
 
@@ -2220,11 +2278,11 @@ class PlivoRestApi(object):
         res = self._rest_inbound_socket.bgapi(cmd)
         job_uuid = res.get_job_uuid()
         if not job_uuid:
-            self._rest_inbound_socket.log.error("SendDigits Failed -- JobUUID not received" % job_uuid)
+            self._rest_inbound_socket.log.error(
+                "SendDigits Failed -- JobUUID not received" % job_uuid)
             msg = "SendDigits Failed"
             return self.send_response(Success=result, Message=msg)
 
         msg = "SendDigits executed"
         result = True
         return self.send_response(Success=result, Message=msg)
-
