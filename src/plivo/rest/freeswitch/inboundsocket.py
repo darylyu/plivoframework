@@ -690,7 +690,7 @@ class RESTInboundSocket(InboundEventSocket):
         for call_req in group_list:
             extras = []
             dial_gws = []
-            for gw in call.gateways:
+            for gw in call_req.gateways:
                 _options = []
                 # Add codecs option
                 if gw.codecs:
