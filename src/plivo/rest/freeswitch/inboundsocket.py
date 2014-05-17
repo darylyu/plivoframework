@@ -1015,7 +1015,7 @@ class RESTInboundSocket(InboundEventSocket):
         cmd = "uuid_buglist %s" % uuid
         res = self.api(cmd)
         if not res.get_response():
-            self.log.warn("cannot get displace_media_list: no list" % str(e))
+            self.log.warn("cannot get displace_media_list: no list")
             return result
         try:
             doc = etree.fromstring(res.get_response())
