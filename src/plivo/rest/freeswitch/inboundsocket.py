@@ -727,7 +727,7 @@ class RESTInboundSocket(InboundEventSocket):
         for call_req in group_list:
             extras = []
             dial_gws = []
-            for gw in call.gateways:
+            for gw in call_req.gateways:
                 _options = []
                 # Add codecs option
                 if gw.codecs:
@@ -1064,7 +1064,7 @@ class RESTInboundSocket(InboundEventSocket):
         cmd = "uuid_buglist %s" % uuid
         res = self.api(cmd)
         if not res.get_response():
-            self.log.warn("cannot get displace_media_list: no list" % str(e))
+            self.log.warn("cannot get displace_media_list: no list")
             return result
         try:
             doc = etree.fromstring(res.get_response())
