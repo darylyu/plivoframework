@@ -141,7 +141,8 @@ cd $CURRENT_PATH
 # Install init scripts
 case $DIST in
     "DEBIAN")
-        cp -f $CURRENT_PATH/debian/freeswitch /etc/init.d/freeswitch
+        cp -f $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.init /etc/init.d/freeswitch
+        cp -f $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.default /etc/default/freeswitch
         cd /etc/rc2.d
         ln -s /etc/init.d/freeswitch S99freeswitch
     ;;
