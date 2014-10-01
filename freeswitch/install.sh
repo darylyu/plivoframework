@@ -137,6 +137,15 @@ wget --no-check-certificate $FS_CONF_PATH/conf/conference.conf.xml -O conference
 
 cd $CURRENT_PATH
 
+# Install init scripts
+case $DIST in
+    "DEBIAN")
+        cp -f $CURRENT_PATH/debian/freeswitch /etc/init.d/freeswitch
+        cd /etc/rc2.d
+        ln -s /etc/init.d/freeswitch S99freeswitch
+    ;;
+esac
+
 # Install Complete
 #clear
 echo ""
