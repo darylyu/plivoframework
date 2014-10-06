@@ -145,6 +145,9 @@ case $DIST in
         cp -f $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.default /etc/default/freeswitch
         cd /etc/rc2.d
         ln -s /etc/init.d/freeswitch S99freeswitch
+        sed -i -e "s|DAEMON=/usr/bin/freeswitch|DAEMON=$FS_INSTALLED_PATH/bin/freeswitch|" /etc/init.d/freeswitch
+        sed -i -e "s|CONFDIR=/etc/\$NAME|CONFDIR=$FS_INSTALLED_PATH/conf|" /etc/init.d/freeswitch
+        sed -i -e "s|WORKDIR=/var/lib/$NAME|WORKDIR=$FS_INSTALLED_PATH|" /etc/init.d/freeswitch
     ;;
 esac
 
