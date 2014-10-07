@@ -141,8 +141,10 @@ cd $CURRENT_PATH
 case $DIST in
     "DEBIAN")
         echo "Adding freeswitch to /etc/init.d and /etc/default"
-        cp -f $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.init /etc/init.d/freeswitch
-        cp -f $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.default /etc/default/freeswitch
+        cp $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.init /etc/init.d/freeswitch
+        cp $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.default /etc/default/freeswitch
+        chmod +x /etc/init.d/freeswitch
+        chmod +x /etc/default/freeswitch
         cd /etc/rc2.d
         ln -s /etc/init.d/freeswitch S99freeswitch
         sed -i -e "s|DAEMON=/usr/bin/freeswitch|DAEMON=$FS_INSTALLED_PATH/bin/freeswitch|" /etc/init.d/freeswitch
