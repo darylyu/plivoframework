@@ -147,11 +147,14 @@ case $DIST in
         ln -s /etc/init.d/freeswitch S99freeswitch
         sed -i -e "s|DAEMON=/usr/bin/freeswitch|DAEMON=$FS_INSTALLED_PATH/bin/freeswitch|" /etc/init.d/freeswitch
         sed -i -e "s|CONFDIR=/etc/\$NAME|CONFDIR=$FS_INSTALLED_PATH/conf|" /etc/init.d/freeswitch
-        sed -i -e "s|WORKDIR=/var/lib/$NAME|WORKDIR=$FS_INSTALLED_PATH|" /etc/init.d/freeswitch
-        sed -i -e "s|USER=freeswitch|USER=root|" /etc/init.d/freeswitch
-        sed -i -e "s|GROUP=freeswitch|GROUP=root|" /etc/init.d/freeswitch
+        sed -i -e "s|WORKDIR=/var/lib/\$NAME|WORKDIR=$FS_INSTALLED_PATH|" /etc/init.d/freeswitch
     ;;
 esac
+
+# Creating freeswitch user
+adduser --disabled-password  --quiet --system --home /usr/local/freeswitch --gecos "FreeSWITCH Voice Platform" --ingroup daemon freeswitch
+chown -R freeswitch:daemon /usr/local/freeswitch/
+chmod -R o-rwx /usr/local/freeswitch/
 
 # Install Complete
 #clear
