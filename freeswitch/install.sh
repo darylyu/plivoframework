@@ -10,7 +10,7 @@ FS_GIT_REPO=https://stash.freeswitch.org/scm/fs/freeswitch.git
 FS_INSTALLED_PATH=/usr/local/freeswitch
 
 #####################################################
-FS_BASE_PATH=/usr/src/
+FS_BASE_PATH=/usr/src
 #####################################################
 
 CURRENT_PATH=$PWD
@@ -136,6 +136,28 @@ cd $FS_INSTALLED_PATH/conf/autoload_configs/
 wget --no-check-certificate $FS_CONF_PATH/conf/conference.conf.xml -O conference.conf.xml
 
 cd $CURRENT_PATH
+
+# Install init scripts
+case $DIST in
+    "DEBIAN")
+        echo "Adding freeswitch to /etc/init.d and /etc/default"
+        cp $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.init /etc/init.d/freeswitch
+        cp $FS_BASE_PATH/freeswitch/debian/freeswitch-sysvinit.freeswitch.default /etc/default/freeswitch
+        chmod +x /etc/init.d/freeswitch
+        chmod +x /etc/default/freeswitch
+        cd /etc/rc2.d
+        ln -s /etc/init.d/freeswitch S99freeswitch
+        sed -i -e "s|DAEMON=/usr/bin/freeswitch|DAEMON=$FS_INSTALLED_PATH/bin/freeswitch|" /etc/init.d/freeswitch
+        sed -i -e "s|CONFDIR=/etc/\$NAME|CONFDIR=$FS_INSTALLED_PATH/conf|" /etc/init.d/freeswitch
+        sed -i -e "s|WORKDIR=/var/lib/\$NAME|WORKDIR=$FS_INSTALLED_PATH|" /etc/init.d/freeswitch
+    ;;
+esac
+
+# Creating freeswitch user
+groupadd freeswitch
+adduser --disabled-password  --quiet --system --home /usr/local/freeswitch --gecos "FreeSWITCH Voice Platform" --ingroup daemon freeswitch
+chown -R freeswitch:daemon /usr/local/freeswitch/
+chmod -R o-rwx /usr/local/freeswitch/
 
 # Install Complete
 #clear
